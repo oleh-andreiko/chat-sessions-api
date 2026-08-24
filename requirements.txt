@@ -1,0 +1,10 @@
+# Only direct dependencies are listed here, pinned to the versions installed
+# locally. Everything else (pydantic, starlette, ...) comes in as a transitive
+# dependency and is not our choice to defend.
+
+fastapi==0.141.1
+uvicorn==0.52.4
+# [binary] ships the precompiled libpq, so no local PostgreSQL client is needed.
+psycopg[binary]==3.3.4
+sqlalchemy==2.0.52
+python-dotenv==1.2.3
