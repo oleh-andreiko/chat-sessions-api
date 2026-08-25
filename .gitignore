@@ -1,3 +1,6 @@
+# Local assistant / editor notes, not part of the deliverable
+CLAUDE.md
+
 # Secrets — company rule: no API keys, passwords or secrets in the repository
 .env
 .env.local
