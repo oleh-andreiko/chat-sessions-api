@@ -1,0 +1,105 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Chat sessions</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font: 15px/1.5 system-ui, sans-serif; max-width: 720px; margin: 2rem auto; padding: 0 1rem; }
+  h1 { font-size: 1.2rem; margin-bottom: 0.25rem; }
+  .bar { display: flex; gap: .5rem; align-items: center; margin-bottom: 1rem; }
+  .sid { font: 12px ui-monospace, monospace; opacity: .7; }
+  #log { border: 1px solid #8884; border-radius: 8px; padding: .75rem; min-height: 220px; }
+  .msg { padding: .4rem .6rem; border-radius: 6px; margin-bottom: .4rem; white-space: pre-wrap; }
+  .user { background: #7773; }
+  .assistant { background: #4a92ff22; }
+  .meta { font-size: 11px; opacity: .6; margin-top: .2rem; }
+  form { display: flex; gap: .5rem; margin: .75rem 0; }
+  input { flex: 1; padding: .5rem; border-radius: 6px; border: 1px solid #8886; }
+  button { padding: .5rem .9rem; border-radius: 6px; border: 1px solid #8886; cursor: pointer; }
+  button:disabled { opacity: .5; cursor: default; }
+  #totals { font: 13px ui-monospace, monospace; opacity: .8; }
+  #error { color: #c0392b; min-height: 1.2em; font-size: 13px; }
+</style>
+
+<h1>Chat sessions</h1>
+<div class="bar">
+  <button id="new-session">New session</button>
+  <span class="sid" id="session-id">no session yet</span>
+</div>
+
+<div id="log"></div>
+<form id="send-form">
+  <input id="text" placeholder="Message" autocomplete="off" disabled>
+  <button id="send" disabled>Send</button>
+</form>
+<div id="totals"></div>
+<div id="error"></div>
+
+<script>
+  let sessionId = null;
+  const $ = (id) => document.getElementById(id);
+
+  // Every endpoint answers errors as {"error": {code, message}}, so one helper
+  // covers all of them.
+  async function api(method, path, body) {
+    const res = await fetch(path, {
+      method,
+      headers: body ? { "Content-Type": "application/json" } : {},
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error?.message ?? res.statusText);
+    return data;
+  }
+
+  function render(session) {
+    $("log").innerHTML = "";
+    for (const m of session.messages) {
+      const el = document.createElement("div");
+      el.className = "msg " + m.role;
+      el.textContent = m.content;
+      if (m.cost !== null) {
+        const meta = document.createElement("div");
+        meta.className = "meta";
+        meta.textContent = `${m.prompt_tokens} in / ${m.completion_tokens} out · $${m.cost}`;
+        el.append(meta);
+      }
+      $("log").append(el);
+    }
+    $("log").scrollTop = $("log").scrollHeight;
+    $("totals").textContent =
+      `total: ${session.total_prompt_tokens} in / ${session.total_completion_tokens} out · $${session.total_cost}`;
+  }
+
+  async function run(action) {
+    $("error").textContent = "";
+    $("send").disabled = true;
+    try {
+      await action();
+    } catch (err) {
+      $("error").textContent = err.message;
+    } finally {
+      $("send").disabled = !sessionId;
+    }
+  }
+
+  $("new-session").onclick = () => run(async () => {
+    const session = await api("POST", "/sessions", { title: "web ui" });
+    sessionId = session.id;
+    $("session-id").textContent = sessionId;
+    $("text").disabled = false;
+    render({ messages: [], total_prompt_tokens: 0, total_completion_tokens: 0, total_cost: "0" });
+  });
+
+  $("send-form").onsubmit = (e) => {
+    e.preventDefault();
+    const text = $("text").value.trim();
+    if (!text || !sessionId) return;
+    run(async () => {
+      await api("POST", `/sessions/${sessionId}/messages`, { content: text });
+      $("text").value = "";
+      // Re-read the session instead of appending locally: the totals are
+      // computed by the server, so this keeps one source of truth.
+      render(await api("GET", `/sessions/${sessionId}`));
+    });
+  };
+</script>

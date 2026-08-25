@@ -1,0 +1,5 @@
+# Test-only dependencies. Kept apart from requirements.txt so the runtime
+# dependency list stays exactly what the service needs to run.
+
+-r requirements.txt
+pytest==9.1.1
