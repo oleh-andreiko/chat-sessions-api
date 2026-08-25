@@ -64,6 +64,11 @@ def send_message(db: Session, session_id: uuid.UUID, content: str) -> Message:
     # Both messages are written after the call succeeds, in one transaction.
     # Writing the question first would leave an unanswered message behind on a
     # failed call, and the next request would replay it as context.
+    #
+    # They are added together on purpose: SQLAlchemy sends both rows in a
+    # single INSERT, so their ids stay adjacent even when two requests hit the
+    # same session at once. Flushing between the two adds would split that into
+    # two statements and let another request's question land in between.
     answer = Message(
         session_id=session_id,
         role="assistant",
