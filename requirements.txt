@@ -8,3 +8,4 @@ uvicorn==0.52.4
 psycopg[binary]==3.3.4
 sqlalchemy==2.0.52
 python-dotenv==1.2.3
+openai==3.3.1
