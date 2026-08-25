@@ -10,8 +10,24 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-DATABASE_URL = os.environ["DATABASE_URL"]
-OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
+
+
+def _required(name: str) -> str:
+    """Fail at startup with an instruction rather than a KeyError later.
+
+    An empty value counts as missing: .env.example ships with an empty
+    OPENAI_API_KEY, so forgetting to fill it in is the likeliest mistake.
+    """
+    value = os.getenv(name, "").strip()
+    if not value:
+        raise RuntimeError(
+            f"{name} is not set. Copy .env.example to .env and fill it in."
+        )
+    return value
+
+
+DATABASE_URL = _required("DATABASE_URL")
+OPENAI_API_KEY = _required("OPENAI_API_KEY")
 
 DEFAULT_MODEL = os.getenv("DEFAULT_MODEL", "gpt-4o-mini")
 
