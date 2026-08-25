@@ -87,12 +87,16 @@ OpenAI: якщо писати питання до виклику, при пад�
 
 ```
 app/
-  main.py        config.py       db.py
-  models.py      schemas.py      errors.py
-  routers/sessions.py            # тільки HTTP: валідація, виклик сервісу, коди
-  services/chat.py               # історія → OpenAI → розрахунок → запис
-  services/openai_client.py      # обгортка над SDK: таймаут, помилки
-  services/pricing.py            # ціни і розрахунок вартості
+  main.py                    # FastAPI app, роутери, обробники помилок
+  config.py                  # налаштування з .env
+  db.py                      # engine, сесія, залежність для DI
+  models.py                  # SQLAlchemy-моделі
+  schemas.py                 # Pydantic-схеми запитів і відповідей
+  errors.py                  # доменні винятки + обробники
+  routers/sessions.py        # тільки HTTP: валідація, виклик сервісу, коди
+  services/chat.py           # історія → OpenAI → розрахунок → запис
+  services/openai_client.py  # обгортка над SDK: таймаут, помилки
+  services/pricing.py        # ціни і розрахунок вартості
 ```
 
 Роут не містить бізнес-логіки. Логіка діалогу — в `chat.py`, ціни — тільки в `pricing.py`,
