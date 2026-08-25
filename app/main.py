@@ -9,7 +9,14 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse
 
 from app.db import engine
-from app.errors import AppError, app_error_handler, validation_error_handler
+from sqlalchemy.exc import SQLAlchemyError
+
+from app.errors import (
+    AppError,
+    app_error_handler,
+    database_error_handler,
+    validation_error_handler,
+)
 from app.models import Base
 from app.routers import sessions
 
@@ -27,6 +34,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Chat sessions API", lifespan=lifespan)
 app.add_exception_handler(AppError, app_error_handler)
 app.add_exception_handler(RequestValidationError, validation_error_handler)
+app.add_exception_handler(SQLAlchemyError, database_error_handler)
 app.include_router(sessions.router)
 
 

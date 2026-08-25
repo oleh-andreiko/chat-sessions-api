@@ -5,9 +5,14 @@ Every error leaves the API in the same shape:
 so a client never has to guess which of two formats it got.
 """
 
+import logging
+
 from fastapi import Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from sqlalchemy.exc import SQLAlchemyError
+
+logger = logging.getLogger(__name__)
 
 
 class AppError(Exception):
@@ -61,4 +66,17 @@ def validation_error_handler(
         content={
             "error": {"code": "invalid_input", "message": f"{field}: {first['msg']}"}
         },
+    )
+
+
+def database_error_handler(request: Request, exc: SQLAlchemyError) -> JSONResponse:
+    """Answer database failures in the same shape as every other error.
+
+    Without this the connection dying mid-request escapes as an unhandled
+    exception and the client gets a bare 500 with no body it can parse.
+    """
+    logger.error("Database error on %s %s: %s", request.method, request.url.path, exc)
+    return JSONResponse(
+        status_code=500,
+        content={"error": {"code": "database_error", "message": "Database unavailable."}},
     )

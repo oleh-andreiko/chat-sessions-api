@@ -1,12 +1,15 @@
 <!doctype html>
 <meta charset="utf-8">
+<!-- Without this a phone lays the page out at a virtual 980px and scales it
+     down, which cuts off the right-hand side. -->
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Chat sessions</title>
 <style>
   :root { color-scheme: light dark; }
   body { font: 15px/1.5 system-ui, sans-serif; max-width: 720px; margin: 2rem auto; padding: 0 1rem; }
   h1 { font-size: 1.2rem; margin-bottom: 0.25rem; }
   .bar { display: flex; gap: .5rem; align-items: center; margin-bottom: 1rem; }
-  .sid { font: 12px ui-monospace, monospace; opacity: .7; }
+  .sid { font: 12px ui-monospace, monospace; opacity: .7; word-break: break-all; }
   #log { border: 1px solid #8884; border-radius: 8px; padding: .75rem; min-height: 220px; }
   .msg { padding: .4rem .6rem; border-radius: 6px; margin-bottom: .4rem; white-space: pre-wrap; }
   .user { background: #7773; }
