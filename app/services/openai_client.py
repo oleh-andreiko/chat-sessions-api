@@ -23,6 +23,9 @@ class Completion:
     content: str
     prompt_tokens: int
     completion_tokens: int
+    # What OpenAI actually served. Asking for "gpt-4o-mini" answers as
+    # "gpt-4o-mini-2024-07-18"; kept for the record, not used for pricing.
+    resolved_model: str
 
 
 def complete(model: str, messages: list[dict]) -> Completion:
@@ -39,4 +42,5 @@ def complete(model: str, messages: list[dict]) -> Completion:
         content=response.choices[0].message.content or "",
         prompt_tokens=response.usage.prompt_tokens,
         completion_tokens=response.usage.completion_tokens,
+        resolved_model=response.model,
     )

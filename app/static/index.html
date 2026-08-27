@@ -17,6 +17,8 @@
   .meta { font-size: 11px; opacity: .6; margin-top: .2rem; }
   form { display: flex; gap: .5rem; margin: .75rem 0; }
   input { flex: 1; padding: .5rem; border-radius: 6px; border: 1px solid #8886; }
+  select { padding: .5rem; border-radius: 6px; border: 1px solid #8886; }
+  .gen { font-size: 12px; opacity: .6; }
   button { padding: .5rem .9rem; border-radius: 6px; border: 1px solid #8886; cursor: pointer; }
   button:disabled { opacity: .5; cursor: default; }
   #totals { font: 13px ui-monospace, monospace; opacity: .8; }
@@ -26,12 +28,20 @@
 <h1>Chat sessions</h1>
 <div class="bar">
   <button id="new-session">New session</button>
+  <button id="reset" disabled>Reset context</button>
   <span class="sid" id="session-id">no session yet</span>
 </div>
+<div class="gen" id="generation"></div>
 
 <div id="log"></div>
 <form id="send-form">
   <input id="text" placeholder="Message" autocomplete="off" disabled>
+  <select id="model" title="Model for this message">
+    <option value="">session default</option>
+    <option value="gpt-4o-mini">gpt-4o-mini</option>
+    <option value="gpt-4.1-nano">gpt-4.1-nano</option>
+    <option value="gpt-4.1-mini">gpt-4.1-mini</option>
+  </select>
   <button id="send" disabled>Send</button>
 </form>
 <div id="totals"></div>
@@ -63,7 +73,8 @@
       if (m.cost !== null) {
         const meta = document.createElement("div");
         meta.className = "meta";
-        meta.textContent = `${m.prompt_tokens} in / ${m.completion_tokens} out · $${m.cost}`;
+        meta.textContent =
+          `${m.model} · ${m.prompt_tokens} in / ${m.completion_tokens} out · $${m.cost}`;
         el.append(meta);
       }
       $("log").append(el);
@@ -71,6 +82,8 @@
     $("log").scrollTop = $("log").scrollHeight;
     $("totals").textContent =
       `total: ${session.total_prompt_tokens} in / ${session.total_completion_tokens} out · $${session.total_cost}`;
+    $("generation").textContent = session.current_generation
+      ? `active context: generation ${session.current_generation}` : "";
   }
 
   async function run(action) {
@@ -82,6 +95,7 @@
       $("error").textContent = err.message;
     } finally {
       $("send").disabled = !sessionId;
+      $("reset").disabled = !sessionId;
     }
   }
 
@@ -90,7 +104,13 @@
     sessionId = session.id;
     $("session-id").textContent = sessionId;
     $("text").disabled = false;
-    render({ messages: [], total_prompt_tokens: 0, total_completion_tokens: 0, total_cost: "0" });
+    render(await api("GET", `/sessions/${sessionId}`));
+  });
+
+  // Reset keeps the same session id and starts a new generation; the server
+  // returns the emptied session, so the page just re-renders what it gets.
+  $("reset").onclick = () => run(async () => {
+    render(await api("POST", `/sessions/${sessionId}/reset`));
   });
 
   $("send-form").onsubmit = (e) => {
@@ -98,7 +118,9 @@
     const text = $("text").value.trim();
     if (!text || !sessionId) return;
     run(async () => {
-      await api("POST", `/sessions/${sessionId}/messages`, { content: text });
+      const model = $("model").value;
+      await api("POST", `/sessions/${sessionId}/messages`,
+                model ? { content: text, model } : { content: text });
       $("text").value = "";
       // Re-read the session instead of appending locally: the totals are
       // computed by the server, so this keeps one source of truth.

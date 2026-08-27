@@ -10,18 +10,43 @@ from decimal import Decimal
 import pytest
 
 from app.errors import PricingNotConfigured
-from app.services.pricing import MODEL_PRICING, calculate_cost
+from app.services.pricing import (
+    MODEL_PRICING,
+    SUPPORTED_MODELS,
+    calculate_cost,
+    is_supported,
+)
 
 MODEL = "gpt-4o-mini"
 
 
 def test_rates_match_the_published_price_list():
-    # $0.15 / $1M input and $0.60 / $1M output, checked against the official
-    # OpenAI price list on 2026-08-25 and quoted in the README.
-    assert MODEL_PRICING[MODEL] == {
-        "input": Decimal("0.15"),
-        "output": Decimal("0.60"),
+    # Checked against the official OpenAI price list on 2026-08-27 and quoted
+    # in the README. If a rate here drifts, every cost the service reports is
+    # wrong and nothing else would notice.
+    assert MODEL_PRICING == {
+        "gpt-4o-mini": {"input": Decimal("0.15"), "output": Decimal("0.60")},
+        "gpt-4.1-nano": {"input": Decimal("0.10"), "output": Decimal("0.40")},
+        "gpt-4.1-mini": {"input": Decimal("0.40"), "output": Decimal("1.60")},
     }
+
+
+def test_each_model_is_priced_by_its_own_rates():
+    # The same usage must cost differently per model, otherwise picking a model
+    # would change nothing about the bill.
+    costs = {m: calculate_cost(m, 1_000_000, 1_000_000) for m in SUPPORTED_MODELS}
+    assert costs == {
+        "gpt-4o-mini": Decimal("0.75"),
+        "gpt-4.1-nano": Decimal("0.50"),
+        "gpt-4.1-mini": Decimal("2.00"),
+    }
+    assert len(set(costs.values())) == len(costs)
+
+
+def test_is_supported_answers_for_both_cases():
+    assert all(is_supported(m) for m in SUPPORTED_MODELS)
+    assert not is_supported("gpt-4o-mini-2024-07-18")  # a dated snapshot
+    assert not is_supported("gpt-does-not-exist")
 
 
 def test_one_million_tokens_each_way():

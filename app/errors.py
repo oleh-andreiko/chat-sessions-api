@@ -38,6 +38,17 @@ class UpstreamError(AppError):
     code = "upstream_error"
 
 
+class UnsupportedModel(AppError):
+    """The caller asked for a model this service has no price for.
+
+    Separate from PricingNotConfigured: this one is the caller's mistake, not a
+    broken configuration, so it is a 400 and names the models that do work.
+    """
+
+    status_code = 400
+    code = "unsupported_model"
+
+
 class PricingNotConfigured(AppError):
     """A model has no entry in the pricing table — a configuration mistake."""
 

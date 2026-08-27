@@ -33,6 +33,9 @@ class ChatSession(Base):
     # The model is fixed when the session is created, so every reply in one
     # session is priced with the same rates.
     model = Column(Text, nullable=False)
+    # Reset does not delete anything: it moves the session to the next
+    # generation, and only messages of the current one count as active history.
+    current_generation = Column(Integer, nullable=False, default=1, server_default="1")
     created_at = Column(DateTime(timezone=True), nullable=False, default=_now)
 
     messages = relationship(
@@ -52,12 +55,18 @@ class Message(Base):
         ForeignKey("sessions.id", ondelete="CASCADE"),
         nullable=False,
     )
+    # Which generation of the session this belongs to. Rows from earlier
+    # generations stay in the table as the archive of what was already paid for.
+    generation = Column(Integer, nullable=False, default=1, server_default="1")
     role = Column(Text, nullable=False)  # "user" or "assistant"
     content = Column(Text, nullable=False)
 
     # The four columns below are filled for assistant messages only: a user
     # message costs nothing on its own and has no usage of its own.
+    # model is the alias the cost was priced by; resolved_model is what OpenAI
+    # reported serving the request. They differ: aliases resolve to snapshots.
     model = Column(Text, nullable=True)
+    resolved_model = Column(Text, nullable=True)
     prompt_tokens = Column(Integer, nullable=True)
     completion_tokens = Column(Integer, nullable=True)
     # Numeric, not float: money must not accumulate binary rounding error.
@@ -72,4 +81,11 @@ class Message(Base):
 
     session = relationship("ChatSession", back_populates="messages")
 
-    __table_args__ = (Index("ix_messages_session_created", "session_id", "created_at"),)
+    __table_args__ = (
+        Index(
+            "ix_messages_session_generation_created",
+            "session_id",
+            "generation",
+            "created_at",
+        ),
+    )
