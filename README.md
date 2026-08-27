@@ -115,6 +115,50 @@ OpenAI повертає в `usage` більше, ніж використовує
 | `GET` | `/health` | Перевірка живучості |
 | `GET` | `/ui` | Сторінка для ручної перевірки API |
 
+### Швидка перевірка за дві хвилини
+
+Послідовність, що проходить усі основні endpoints. Скопіювати цілком; `jq`
+не потрібен.
+
+```bash
+B=http://127.0.0.1:8000
+
+# 1. Сервіс живий
+curl -s $B/health
+
+# 2. Створити сесію і запам'ятати її id
+SID=$(curl -s -X POST $B/sessions -H "Content-Type: application/json"   -d '{"title":"smoke"}' | python -c "import sys,json;print(json.load(sys.stdin)['id'])")
+echo "session: $SID"
+
+# 3. Дати моделі факт, який вона зможе згадати лише з історії
+curl -s -X POST $B/sessions/$SID/messages -H "Content-Type: application/json"   -d '{"content":"Remember the word COBALT. Reply with just OK."}'
+
+# 4. Перевірити, що історія працює: у відповіді має бути COBALT
+curl -s -X POST $B/sessions/$SID/messages -H "Content-Type: application/json"   -d '{"content":"Which word did I ask you to remember?"}'
+
+# 5. Інша модель для одного повідомлення — cost рахується за її тарифами
+curl -s -X POST $B/sessions/$SID/messages -H "Content-Type: application/json"   -d '{"content":"Reply OK.","model":"gpt-4.1-nano"}'
+
+# 6. Історія разом із накопиченою вартістю
+curl -s $B/sessions/$SID
+
+# 7. Reset: id той самий, історія порожня, total_cost нульовий
+curl -s -X POST $B/sessions/$SID/reset
+
+# 8. Після reset модель уже не знає COBALT
+curl -s -X POST $B/sessions/$SID/messages -H "Content-Type: application/json"   -d '{"content":"Which word did I ask you to remember? If unknown say NOTHING."}'
+
+# 9. Помилки: 404, 422, 400
+curl -s -o /dev/null -w "404 -> %{http_code}
+" $B/sessions/00000000-0000-0000-0000-000000000000
+curl -s -o /dev/null -w "422 -> %{http_code}
+" $B/sessions/not-a-uuid
+curl -s -X POST $B/sessions/$SID/messages -H "Content-Type: application/json"   -d '{"content":"x","model":"gpt-nope"}'
+```
+
+Те саме можна клікнути руками на `http://127.0.0.1:8000/ui` — там є вибір
+моделі й кнопка Reset.
+
 ### Приклади запитів
 
 **1. Створити сесію**
