@@ -21,8 +21,23 @@ def get_session(db: Session, session_id: uuid.UUID) -> ChatSession:
     return session
 
 
+def _check_model(model: str) -> str:
+    """Reject a model with no price before anything is built on top of it."""
+    if not pricing.is_supported(model):
+        raise UnsupportedModel(
+            f"Model '{model}' is not supported. "
+            f"Supported models: {', '.join(pricing.SUPPORTED_MODELS)}."
+        )
+    return model
+
+
 def create_session(db: Session, model: str | None, title: str | None) -> ChatSession:
-    session = ChatSession(model=model or config.DEFAULT_MODEL, title=title)
+    # Checked here too, not only when sending: creating a session with a model
+    # that has no price would return 201 and then fail on every message, which
+    # hides the mistake behind an unrelated-looking error later.
+    session = ChatSession(
+        model=_check_model(model or config.DEFAULT_MODEL), title=title
+    )
     db.add(session)
     db.commit()
     db.refresh(session)
@@ -86,11 +101,7 @@ def send_message(
 
     # Checked before the API call, not after: an unsupported model would fail at
     # pricing anyway, and by then the request has already been paid for.
-    if not pricing.is_supported(chosen_model):
-        raise UnsupportedModel(
-            f"Model '{chosen_model}' is not supported. "
-            f"Supported models: {', '.join(pricing.SUPPORTED_MODELS)}."
-        )
+    _check_model(chosen_model)
 
     payload = [{"role": m.role, "content": m.content} for m in _context(db, session)]
     payload.append({"role": "user", "content": content})
