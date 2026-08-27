@@ -12,7 +12,6 @@ with no override needed.
 """
 
 import os
-from decimal import Decimal
 
 import psycopg
 import pytest
