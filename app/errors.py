@@ -11,6 +11,7 @@ from fastapi import Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from sqlalchemy.exc import SQLAlchemyError
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 logger = logging.getLogger(__name__)
 
@@ -90,4 +91,33 @@ def database_error_handler(request: Request, exc: SQLAlchemyError) -> JSONRespon
     return JSONResponse(
         status_code=500,
         content={"error": {"code": "database_error", "message": "Database unavailable."}},
+    )
+
+
+# Framework-raised errors carry no domain meaning, so they get a code derived
+# from the status. Anything unlisted falls back to a generic one.
+_HTTP_ERROR_CODES = {
+    400: "invalid_request",
+    404: "not_found",
+    405: "method_not_allowed",
+}
+
+
+def http_exception_handler(
+    request: Request, exc: StarletteHTTPException
+) -> JSONResponse:
+    """Reshape errors raised by FastAPI itself into the one error format.
+
+    An unreadable request body and an unknown route are raised by the framework
+    as its own HTTPException, which would otherwise answer with {"detail": ...}
+    and make these two the only replies in the API speaking a different shape.
+    """
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "error": {
+                "code": _HTTP_ERROR_CODES.get(exc.status_code, "http_error"),
+                "message": str(exc.detail),
+            }
+        },
     )

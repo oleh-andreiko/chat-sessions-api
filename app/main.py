@@ -10,11 +10,13 @@ from fastapi.responses import FileResponse
 
 from app.db import engine
 from sqlalchemy.exc import SQLAlchemyError
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.errors import (
     AppError,
     app_error_handler,
     database_error_handler,
+    http_exception_handler,
     validation_error_handler,
 )
 from app.models import Base
@@ -35,6 +37,7 @@ app = FastAPI(title="Chat sessions API", lifespan=lifespan)
 app.add_exception_handler(AppError, app_error_handler)
 app.add_exception_handler(RequestValidationError, validation_error_handler)
 app.add_exception_handler(SQLAlchemyError, database_error_handler)
+app.add_exception_handler(StarletteHTTPException, http_exception_handler)
 app.include_router(sessions.router)
 
 

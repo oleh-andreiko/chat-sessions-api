@@ -145,3 +145,50 @@ def test_a_failed_call_leaves_nothing_behind(client, session_id, failing_openai)
     client.post(f"/sessions/{session_id}/messages", json={"content": "hi"})
 
     assert client.get(f"/sessions/{session_id}").json()["messages"] == []
+
+
+def test_an_unreadable_body_answers_in_the_same_error_format(client):
+    # Found by hand: FastAPI raises its own HTTPException here, which used to
+    # slip past the handlers and answer {"detail": ...} instead.
+    response = client.post(
+        "/sessions",
+        content=b'{"title":"\xff\xfe"}',
+        headers={"Content-Type": "application/json"},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "invalid_request"
+
+
+def test_an_unknown_route_answers_in_the_same_error_format(client):
+    response = client.get("/no-such-route")
+
+    assert response.status_code == 404
+    assert response.json()["error"]["code"] == "not_found"
+
+
+def test_a_wrong_method_answers_in_the_same_error_format(client):
+    response = client.delete("/sessions")
+
+    assert response.status_code == 405
+    assert response.json()["error"]["code"] == "method_not_allowed"
+
+
+def test_every_error_uses_the_same_envelope(client, session_id):
+    """One shape for all of them, whoever raised it."""
+    failures = [
+        client.get("/sessions/00000000-0000-0000-0000-000000000000"),
+        client.get("/sessions/not-a-uuid"),
+        client.get("/no-such-route"),
+        client.delete("/sessions"),
+        client.post(f"/sessions/{session_id}/messages", json={"content": ""}),
+        client.post(
+            f"/sessions/{session_id}/messages",
+            json={"content": "hi", "model": "gpt-nope"},
+        ),
+    ]
+
+    for response in failures:
+        body = response.json()
+        assert set(body) == {"error"}, response.request.url
+        assert set(body["error"]) == {"code", "message"}, response.request.url

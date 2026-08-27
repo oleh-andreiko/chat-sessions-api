@@ -226,7 +226,9 @@ curl -X POST http://127.0.0.1:8000/sessions/<id>/reset
 
 ### Помилки
 
-Усі помилки мають один формат:
+Усі помилки мають один формат — включно з тими, які піднімає сам FastAPI
+(нечитабельне тіло запиту, невідомий шлях, невідповідний метод). Без окремого
+обробника саме вони були б єдиними відповідями в іншій формі:
 
 ```json
 {"error": {"code": "session_not_found", "message": "Session ... does not exist."}}
@@ -238,6 +240,9 @@ curl -X POST http://127.0.0.1:8000/sessions/<id>/reset
 | Порожній `content`, невалідний UUID | 422 | `invalid_input` |
 | Помилка OpenAI (таймаут, rate limit, 5xx) | 502 | `upstream_error` |
 | Клієнт попросив непідтримувану модель | 400 | `unsupported_model` |
+| Тіло запиту не читається | 400 | `invalid_request` |
+| Невідомий шлях | 404 | `not_found` |
+| Невідповідний метод | 405 | `method_not_allowed` |
 | Модель самої сесії відсутня в таблиці цін | 500 | `pricing_not_configured` |
 | База даних недоступна | 500 | `database_error` |
 
