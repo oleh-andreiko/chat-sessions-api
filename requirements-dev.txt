@@ -3,3 +3,5 @@
 
 -r requirements.txt
 pytest==9.1.1
+# Needed by FastAPI's TestClient to drive the app in-process.
+httpx==0.28.1
